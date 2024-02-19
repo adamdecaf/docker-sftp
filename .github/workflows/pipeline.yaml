@@ -65,7 +65,7 @@ jobs:
           docker buildx build --platform linux/amd64 -t ${{env.imageRepository}}:build-${{env.version}}-amd64   -f src/ES.SFTP/Dockerfile src/
           docker buildx build --platform linux/arm   -t ${{env.imageRepository}}:build-${{env.version}}-arm32v7 -f src/ES.SFTP/Dockerfile src/
           docker buildx build --platform linux/arm64 -t ${{env.imageRepository}}:build-${{env.version}}-arm64v8 -f src/ES.SFTP/Dockerfile src/
-
+          docker buildx build --platform windows/amd64 -t ${{env.imageRepository}}:build-${{env.version}}-windows-amd64 -f src/ES.SFTP/Dockerfile src/
 
 
       - name: "docker - build and publish - amd64"
@@ -82,7 +82,12 @@ jobs:
         if: github.event_name == 'push'
         run: |
           docker buildx build --push --platform linux/arm64 --provenance=false -t ${{env.imageRepository}}:build-${{env.version}}-arm64v8 -f src/ES.SFTP/Dockerfile src/
-          
+
+      - name: "docker - build and publish - windows/arm64"
+        if: github.event_name == 'push'
+        run: |
+          docker buildx build --push --platform windows/amd64 --provenance=false -t ${{env.imageRepository}}:build-${{env.version}}-windows-amd64 -f src/ES.SFTP/Dockerfile src/
+
 
       - name: "docker - create manifest and publish"
         if: github.event_name == 'push'
@@ -90,7 +95,10 @@ jobs:
           docker pull --platform linux/amd64 ${{env.imageRepository}}:build-${{env.version}}-amd64
           docker pull --platform linux/arm/v7 ${{env.imageRepository}}:build-${{env.version}}-arm32v7
           docker pull --platform linux/arm64 ${{env.imageRepository}}:build-${{env.version}}-arm64v8
-          docker manifest create  ${{env.imageRepository}}:build-${{env.version}} ${{env.imageRepository}}:build-${{env.version}}-amd64  ${{env.imageRepository}}:build-${{env.version}}-arm32v7  ${{env.imageRepository}}:build-${{env.version}}-arm64v8
+          docker pull --platform windows/arm64 ${{env.imageRepository}}:build-${{env.version}}-windows-amd64
+          docker manifest create  ${{env.imageRepository}}:build-${{env.version}} \
+            ${{env.imageRepository}}:build-${{env.version}}-amd64  ${{env.imageRepository}}:build-${{env.version}}-arm32v7  ${{env.imageRepository}}:build-${{env.version}}-arm64v8 \
+            ${{env.imageRepository}}:build-${{env.version}}-windows-amd64
           docker manifest inspect ${{env.imageRepository}}:build-${{env.version}}
           docker manifest push    ${{env.imageRepository}}:build-${{env.version}}
 
@@ -120,18 +128,25 @@ jobs:
           docker pull ${{env.imageRepository}}:build-${{env.version}}-amd64
           docker pull ${{env.imageRepository}}:build-${{env.version}}-arm32v7
           docker pull ${{env.imageRepository}}:build-${{env.version}}-arm64v8
-          docker manifest create  ${{env.imageRepository}}:${{env.version}} ${{env.imageRepository}}:build-${{env.version}}-amd64 ${{env.imageRepository}}:build-${{env.version}}-arm32v7 ${{env.imageRepository}}:build-${{env.version}}-arm64v8
-          docker manifest create  ${{env.imageRepository}}:latest               ${{env.imageRepository}}:build-${{env.version}}-amd64 ${{env.imageRepository}}:build-${{env.version}}-arm32v7 ${{env.imageRepository}}:build-${{env.version}}-arm64v8
-          docker manifest push    ${{env.imageRepository}}:${{env.version}}
-          docker manifest push    ${{env.imageRepository}}:latest
-          docker manifest push    ${{env.imageRepository}}:${{env.version}}
-          docker manifest push    ${{env.imageRepository}}:latest
-          docker tag  ${{env.imageRepository}}:build-${{env.version}}-amd64     ${{env.imageRepository}}:${{env.version}}-amd64
-          docker tag  ${{env.imageRepository}}:build-${{env.version}}-arm32v7   ${{env.imageRepository}}:${{env.version}}-arm32v7
-          docker tag  ${{env.imageRepository}}:build-${{env.version}}-arm64v8   ${{env.imageRepository}}:${{env.version}}-arm64v8
+          docker pull ${{env.imageRepository}}:build-${{env.version}}-windows-amd64
+          docker manifest create  ${{env.imageRepository}}:${{env.version}} \
+            ${{env.imageRepository}}:build-${{env.version}}-amd64 ${{env.imageRepository}}:build-${{env.version}}-arm32v7 ${{env.imageRepository}}:build-${{env.version}}-arm64v8 \
+            ${{env.imageRepository}}:build-${{env.version}}-windows-amd64
+          docker manifest create  ${{env.imageRepository}}:latest \
+            ${{env.imageRepository}}:build-${{env.version}}-amd64 ${{env.imageRepository}}:build-${{env.version}}-arm32v7 ${{env.imageRepository}}:build-${{env.version}}-arm64v8 \
+            ${{env.imageRepository}}:build-${{env.version}}-windows-amd64
+          docker manifest push ${{env.imageRepository}}:${{env.version}}
+          docker manifest push ${{env.imageRepository}}:latest
+          docker manifest push ${{env.imageRepository}}:${{env.version}}
+          docker manifest push ${{env.imageRepository}}:latest
+          docker tag  ${{env.imageRepository}}:build-${{env.version}}-amd64          ${{env.imageRepository}}:${{env.version}}-amd64
+          docker tag  ${{env.imageRepository}}:build-${{env.version}}-arm32v7        ${{env.imageRepository}}:${{env.version}}-arm32v7
+          docker tag  ${{env.imageRepository}}:build-${{env.version}}-arm64v8        ${{env.imageRepository}}:${{env.version}}-arm64v8
+          docker tag  ${{env.imageRepository}}:build-${{env.version}}-windows-amd64  ${{env.imageRepository}}:${{env.version}}-windows-amd64
           docker push ${{env.imageRepository}}:${{env.version}}-amd64
           docker push ${{env.imageRepository}}:${{env.version}}-arm32v7
           docker push ${{env.imageRepository}}:${{env.version}}-arm64v8
+          docker push ${{env.imageRepository}}:${{env.version}}-windows-amd64
 
       - name: github - checkout - helm-charts
         uses: actions/checkout@v2
@@ -163,4 +178,3 @@ jobs:
           tag_name: v${{env.version}}
           body: The release process is automated.
           token: ${{ secrets.ES_GITHUB_PAT }}
-            
